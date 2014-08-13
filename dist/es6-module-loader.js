@@ -1709,7 +1709,6 @@ function logloads(loads) {
       }
       // if not anonymous, add to the module table
       if (load.name) {
-        console.assert(!loader.modules[load.name], 'load not in module table');
         loader.modules[load.name] = load.module;
       }
       var loadIndex = indexOf.call(loader.loads, load);
@@ -1815,7 +1814,6 @@ function logloads(loads) {
             if (!module || !(module instanceof Module))
               throw new TypeError('Execution must define a Module instance');
             load.module = {
-              name: load.name,
               module: module
             };
             load.status = 'linked';
@@ -1900,12 +1898,8 @@ function logloads(loads) {
 
         // only declarative modules have dynamic bindings
         if (depModule.importers) {
-          module.dependencies.push(depModule);
           depModule.importers.push(module);
-        }
-        else {
-          // track dynamic records as null module records as already linked
-          module.dependencies.push(null);
+          module.dependencies.push(depModule);
         }
 
         // run the setter for this dependency
@@ -1969,10 +1963,6 @@ function logloads(loads) {
 
       for (var i = 0, l = deps.length; i < l; i++) {
         var dep = deps[i];
-        // dynamic dependencies are empty in module.dependencies
-        // as they are already linked
-        if (!dep)
-          continue;
         if (indexOf.call(seen, dep) == -1) {
           err = ensureEvaluated(dep, seen, loader);
           // stop on error, see https://bugs.ecmascript.org/show_bug.cgi?id=2996
@@ -2229,8 +2219,6 @@ function logloads(loads) {
         var compiler = new traceur.Compiler();
         var options = System.traceurOptions || {};
         options.modules = 'instantiate';
-        options.sourceMaps = true;
-        options.filename = load.address;
         var output = compiler.stringToTree({content: load.source, options: options});
         checkForErrors(output);
 
@@ -2239,7 +2227,6 @@ function logloads(loads) {
 
         output = compiler.treeToString(output);
         checkForErrors(output);
-
         var source = output.js;
         var sourceMap = output.generatedSourceMap;
 
@@ -2521,12 +2508,6 @@ function logloads(loads) {
   }
   System.paths = { '*': '*.js' };
 
-  // note we have to export before runing "init" below
-  if (typeof exports === 'object')
-    module.exports = System;
-
-  global.System = System;
-
   // <script type="module"> support
   // allow a data-init function callback once loaded
   if (isBrowser) {
@@ -2564,5 +2545,10 @@ function logloads(loads) {
     if (curScript.getAttribute('data-init'))
       window[curScript.getAttribute('data-init')]();
   }
+
+  if (typeof exports === 'object')
+    module.exports = System;
+
+  global.System = System;
 
 })(typeof global !== 'undefined' ? global : this);
